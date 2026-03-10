@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Agenda Inmobiliaria</title>
+</head>
+
+<body>
+
+<h2>Agendar visita a propiedad</h2>
+
+<form>
+
+Cliente:<br>
+<input type="text" id="cliente"><br><br>
+
+Teléfono:<br>
+<input type="text" id="telefono"><br><br>
+
+Propiedad:<br>
+<select id="propiedad">
+<option value="Apartamento 203">Apartamento 203</option>
+<option value="Casa 21">Casa 21</option>
+<option value="Local Comercial 5">Local Comercial 5</option>
+<option value="Apartamento 302">Apartamento 302</option>
+</select><br><br>
+
+Asesor:<br>
+<select id="asesor">
+<option value="Carlos">Carlos</option>
+<option value="Ana">Ana</option>
+<option value="Luis">Luis</option>
+</select><br><br>
+
+Fecha:<br>
+<input type="date" id="fecha"><br><br>
+
+Hora inicio:<br>
+<input type="time" id="hora_inicio"><br><br>
+
+Hora fin:<br>
+<input type="time" id="hora_fin"><br><br>
+
+<button type="button" onclick="crearEvento()">Agendar cita</button>
+
+</form>
+<h2>Agenda de citas</h2>
+
+<iframe 
+src="https://calendar.google.com/calendar/embed?src=https://calendar.google.com/calendar/embed?src=f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81%40group.calendar.google.com&ctz=America%2FBogota" style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>"
+
+</iframe>
+
+<script>
+
+
+function crearEvento(){
+
+let cliente = document.getElementById("cliente").value
+let telefono = document.getElementById("telefono").value
+let propiedad = document.getElementById("propiedad").value
+let asesor = document.getElementById("asesor").value
+let fecha = document.getElementById("fecha").value
+let hora_inicio = document.getElementById("hora_inicio").value
+let hora_fin = document.getElementById("hora_fin").value
+
+let titulo = "Visita " + propiedad + " - " + cliente
+
+let detalles = "Cliente: " + cliente +
+"\nTelefono: " + telefono +
+"\nAsesor: " + asesor +
+"\nPropiedad: " + propiedad
+
+let inicio = fecha + "T" + hora_inicio + ":00"
+let fin = fecha + "T" + hora_fin + ":00"
+
+inicio = inicio.replace(/[-:]/g,"")
+fin = fin.replace(/[-:]/g,"")
+
+let url = "https://calendar.google.com/calendar/render?action=TEMPLATE"
++ "&text=" + encodeURIComponent(titulo)
++ "&details=" + encodeURIComponent(detalles)
++ "&dates=" + inicio + "/" + fin
+
+window.open(url)
+
+}
+
+</script>
+
+</body>
+
+</html>
