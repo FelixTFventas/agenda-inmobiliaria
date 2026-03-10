@@ -88,6 +88,24 @@ let url = "https://calendar.google.com/calendar/render?action=TEMPLATE"
 
 window.open(url)
 
+
+// MENSAJE DE WHATSAPP
+
+let mensaje = "Hola " + cliente +
+", tu visita a la propiedad " + propiedad +
+" fue agendada.\n\nFecha: " + fecha +
+"\nHora: " + hora_inicio +
+"\nAsesor: " + asesor +
+"\n\nInmobiliaria"
+
+let whatsapp = "https://wa.me/57" + telefono + "?text=" + encodeURIComponent(mensaje)
+
+window.open(whatsapp)
+
+
+
+window.open(url)
+
 }
 
 </script>
