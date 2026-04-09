@@ -186,7 +186,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: minmax(320px, 470px) minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 24px;
     margin-top: 24px;
     align-items: start;
@@ -202,6 +202,8 @@
 
   .panel-form {
     padding: 28px;
+    width: min(100%, 820px);
+    justify-self: center;
   }
 
   .panel-calendar {
@@ -356,7 +358,7 @@
   iframe {
     display: block;
     width: 100%;
-    min-height: 760px;
+    min-height: 900px;
     border: 0;
   }
 
@@ -447,11 +449,19 @@
         <div class="panel-header">
           <p class="eyebrow">Nueva cita</p>
           <h2>Agendar visita</h2>
-          <p>Completa los datos del prospecto y valida el horario antes de crear la cita en el calendario compartido.</p>
+          <p>Selecciona el equipo, valida disponibilidad y crea la cita en el calendario correcto.</p>
         </div>
 
         <form id="agenda-form">
           <div class="field-grid">
+            <div class="field">
+              <label for="equipo">Equipo</label>
+              <select id="equipo" name="equipo" required>
+                <option value="Ventas">Ventas</option>
+                <option value="Arriendo">Arriendo</option>
+              </select>
+            </div>
+
             <div class="field full">
               <label for="cliente">Cliente</label>
               <input type="text" id="cliente" name="cliente" placeholder="Nombre completo" required>
@@ -510,9 +520,10 @@
           <p class="eyebrow">Calendario compartido</p>
           <h2>Agenda de citas</h2>
         </div>
-        <p class="calendar-note">Usa esta vista para confirmar disponibilidad antes de crear la cita en el calendario compartido.</p>
+        <p class="calendar-note">La vista cambia segun el equipo seleccionado para que revises disponibilidad sin mezclar ventas y arriendos.</p>
         <div class="calendar-wrap">
           <iframe
+            id="calendar-frame"
             title="Calendario de citas inmobiliarias"
             src="https://calendar.google.com/calendar/embed?src=f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81%40group.calendar.google.com&ctz=America%2FBogota"
             loading="lazy"
@@ -526,7 +537,20 @@
     const form = document.getElementById("agenda-form");
     const statusNode = document.getElementById("status");
     const scriptUrlInput = document.getElementById("script_url");
+    const equipoInput = document.getElementById("equipo");
+    const asesorInput = document.getElementById("asesor");
+    const calendarFrame = document.getElementById("calendar-frame");
     const STORAGE_KEY = "agenda_inmobiliaria_script_url";
+    const TEAM_CONFIG = {
+      Ventas: {
+        advisors: ["Paola Crespo", "Yunior Lara", "Patricia Trujillo"],
+        calendarEmbedUrl: "https://calendar.google.com/calendar/embed?src=f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81%40group.calendar.google.com&ctz=America%2FBogota"
+      },
+      Arriendo: {
+        advisors: ["Harold Trujillo", "Cristian Rojas"],
+        calendarEmbedUrl: "https://calendar.google.com/calendar/embed?src=e011c9c835c657b151a32cee1e71e17c2fd035d6875c3014482cd44c078e40c3%40group.calendar.google.com&ctz=America%2FBogota"
+      }
+    };
 
     scriptUrlInput.value = localStorage.getItem(STORAGE_KEY) || "";
 
@@ -546,6 +570,29 @@
     function setStatus(message, type) {
       statusNode.textContent = message;
       statusNode.className = type ? `status ${type}` : "status";
+    }
+
+    function renderAdvisorOptions(team) {
+      const config = TEAM_CONFIG[team] || TEAM_CONFIG.Ventas;
+
+      asesorInput.innerHTML = "";
+
+      config.advisors.forEach(function (advisor) {
+        const option = document.createElement("option");
+        option.value = advisor;
+        option.textContent = advisor;
+        asesorInput.appendChild(option);
+      });
+    }
+
+    function updateCalendarEmbed(team) {
+      const config = TEAM_CONFIG[team] || TEAM_CONFIG.Ventas;
+      calendarFrame.src = config.calendarEmbedUrl;
+    }
+
+    function syncTeamUI(team) {
+      renderAdvisorOptions(team);
+      updateCalendarEmbed(team);
     }
 
     function normalizarTelefono(value) {
@@ -633,11 +680,12 @@
       const cliente = document.getElementById("cliente").value.trim();
       const telefono = normalizarTelefono(document.getElementById("telefono").value);
       const propiedad = document.getElementById("propiedad").value.trim();
+      const equipo = equipoInput.value;
       const asesor = document.getElementById("asesor").value;
       const fecha = document.getElementById("fecha").value;
       const horaInicio = document.getElementById("hora_inicio").value;
 
-      if (!cliente || !telefono || !propiedad || !asesor || !fecha || !horaInicio) {
+      if (!cliente || !telefono || !propiedad || !equipo || !asesor || !fecha || !horaInicio) {
         setStatus("Completa todos los campos para crear la cita.", "error");
         return;
       }
@@ -647,6 +695,7 @@
         cliente,
         telefono,
         propiedad,
+        equipo,
         asesor,
         fecha,
         hora_inicio: horaInicio,
@@ -678,10 +727,19 @@
       setStatus("La cita se creo en Google Calendar y se guardo en Google Sheets.", "success");
     }
 
+    equipoInput.addEventListener("change", function () {
+      syncTeamUI(equipoInput.value);
+    });
+
     form.addEventListener("submit", crearEvento);
     form.addEventListener("reset", function () {
       setStatus("", "");
+      window.setTimeout(function () {
+        syncTeamUI(equipoInput.value || "Ventas");
+      }, 0);
     });
+
+    syncTeamUI(equipoInput.value);
   </script>
 </body>
 </html>

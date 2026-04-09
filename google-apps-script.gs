@@ -1,10 +1,15 @@
 const SHEET_NAME = 'Citas';
-const CALENDAR_ID = 'f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81@group.calendar.google.com';
 const DEFAULT_DURATION_MINUTES = 45;
+const TEAM_CALENDARS = {
+  Ventas: 'f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81@group.calendar.google.com',
+  Arriendo: 'e011c9c835c657b151a32cee1e71e17c2fd035d6875c3014482cd44c078e40c3@group.calendar.google.com'
+};
 const ADVISOR_EVENT_COLORS = {
   'Paola Crespo': CalendarApp.EventColor.BLUE,
   'Yunior Lara': CalendarApp.EventColor.GREEN,
-  'Patricia Trujillo': CalendarApp.EventColor.RED
+  'Patricia Trujillo': CalendarApp.EventColor.RED,
+  'Harold Trujillo': CalendarApp.EventColor.MAUVE,
+  'Cristian Rojas': CalendarApp.EventColor.ORANGE
 };
 
 function doPost(e) {
@@ -41,7 +46,13 @@ function doGet(e) {
 function handleAppointment(payload) {
   validatePayload(payload);
 
-  const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+  const calendarId = TEAM_CALENDARS[payload.equipo];
+
+  if (!calendarId) {
+    throw new Error('No se encontro un calendario configurado para el equipo seleccionado.');
+  }
+
+  const calendar = CalendarApp.getCalendarById(calendarId);
 
   if (!calendar) {
     throw new Error('No se encontro el calendario configurado.');
@@ -80,6 +91,7 @@ function handleAppointment(payload) {
     payload.cliente || '',
     payload.telefono || '',
     payload.propiedad || '',
+    payload.equipo || '',
     payload.asesor || '',
     payload.fecha || '',
     payload.hora_inicio || '',
@@ -128,6 +140,7 @@ function ensureHeader(sheet) {
     'cliente',
     'telefono',
     'propiedad',
+    'equipo',
     'asesor',
     'fecha',
     'hora_inicio',
@@ -161,6 +174,7 @@ function buildDescription(payload) {
   return [
     'Cliente: ' + (payload.cliente || ''),
     'Telefono: ' + (payload.telefono || ''),
+    'Equipo: ' + (payload.equipo || ''),
     'Asesor: ' + (payload.asesor || ''),
     'Propiedad: ' + (payload.propiedad || '')
   ].join('\n');
@@ -177,7 +191,7 @@ function applyAdvisorColor(event, advisor) {
 }
 
 function validatePayload(payload) {
-  const requiredFields = ['cliente', 'telefono', 'propiedad', 'asesor', 'fecha', 'hora_inicio'];
+  const requiredFields = ['cliente', 'telefono', 'propiedad', 'equipo', 'asesor', 'fecha', 'hora_inicio'];
 
   for (var i = 0; i < requiredFields.length; i += 1) {
     if (!payload[requiredFields[i]]) {
