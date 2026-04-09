@@ -1,6 +1,11 @@
 const SHEET_NAME = 'Citas';
 const CALENDAR_ID = 'f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81@group.calendar.google.com';
 const DEFAULT_DURATION_MINUTES = 45;
+const ADVISOR_EVENT_COLORS = {
+  'Paola Crespo': CalendarApp.EventColor.BLUE,
+  'Yunior Lara': CalendarApp.EventColor.GREEN,
+  'Patricia Trujillo': CalendarApp.EventColor.RED
+};
 
 function doPost(e) {
   try {
@@ -62,6 +67,7 @@ function handleAppointment(payload) {
       endDate,
       { description: buildDescription(payload) }
     );
+    applyAdvisorColor(event, payload.asesor);
     eventCreated = true;
   } catch (error) {
     appointmentStatus = 'error_calendar';
@@ -158,6 +164,16 @@ function buildDescription(payload) {
     'Asesor: ' + (payload.asesor || ''),
     'Propiedad: ' + (payload.propiedad || '')
   ].join('\n');
+}
+
+function applyAdvisorColor(event, advisor) {
+  const eventColor = ADVISOR_EVENT_COLORS[advisor];
+
+  if (!eventColor) {
+    return;
+  }
+
+  event.setColor(eventColor);
 }
 
 function validatePayload(payload) {
