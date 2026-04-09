@@ -417,7 +417,7 @@
         <div class="hero-copy">
           <p class="eyebrow">Agenda de visitas</p>
           <h1>Coordina citas inmobiliarias</h1>
-          <p>Registra al cliente, genera el evento en Google Calendar y prepara el mensaje de confirmacion por WhatsApp desde una sola pantalla.</p>
+          <p>Registra al cliente, crea la cita en el calendario compartido y prepara el mensaje de confirmacion por WhatsApp desde una sola pantalla.</p>
         </div>
 
         <div class="hero-brand" aria-label="Marca inmobiliaria">
@@ -447,7 +447,7 @@
         <div class="panel-header">
           <p class="eyebrow">Nueva cita</p>
           <h2>Agendar visita</h2>
-          <p>Completa los datos del prospecto y valida el horario antes de abrir el calendario y la conversacion de WhatsApp.</p>
+          <p>Completa los datos del prospecto y valida el horario antes de crear la cita en el calendario compartido y abrir WhatsApp.</p>
         </div>
 
         <form id="agenda-form">
@@ -465,20 +465,15 @@
             <div class="field">
               <label for="asesor">Asesor</label>
               <select id="asesor" name="asesor" required>
-                <option value="Carlos">Carlos</option>
-                <option value="Ana">Ana</option>
-                <option value="Luis">Luis</option>
+                <option value="Paola Crespo">Paola Crespo</option>
+                <option value="Yunior Lara">Yunior Lara</option>
+                <option value="Patricia Trujillo">Patricia Trujillo</option>
               </select>
             </div>
 
             <div class="field full">
               <label for="propiedad">Propiedad</label>
-              <select id="propiedad" name="propiedad" required>
-                <option value="Apartamento 203">Apartamento 203</option>
-                <option value="Casa 21">Casa 21</option>
-                <option value="Local Comercial 5">Local Comercial 5</option>
-                <option value="Apartamento 302">Apartamento 302</option>
-              </select>
+              <input type="text" id="propiedad" name="propiedad" placeholder="Apartamento 203, Casa 21, Local 5..." required>
             </div>
 
             <div class="field">
@@ -498,13 +493,13 @@
           </div>
 
           <div class="actions">
-            <button type="submit" class="btn-primary">Crear evento y mensaje</button>
+            <button type="submit" class="btn-primary">Crear cita y mensaje</button>
             <button type="reset" class="btn-secondary">Limpiar formulario</button>
           </div>
 
           <details class="integration">
-            <summary>Configurar Google Sheets</summary>
-            <p>Pega aqui la URL de tu Web App de Google Apps Script. La guardo en este navegador para registrar cada cita en tu hoja antes de abrir Calendar y WhatsApp.</p>
+            <summary>Configurar Apps Script</summary>
+            <p>Pega aqui la URL de tu Web App de Google Apps Script. La guardo en este navegador para crear cada cita en el calendario compartido, guardarla en tu hoja y abrir WhatsApp.</p>
             <div class="field">
               <label for="script_url">URL de Apps Script</label>
               <input type="url" id="script_url" name="script_url" placeholder="https://script.google.com/macros/s/.../exec">
@@ -520,7 +515,7 @@
           <p class="eyebrow">Calendario compartido</p>
           <h2>Agenda de citas</h2>
         </div>
-        <p class="calendar-note">Usa esta vista para confirmar disponibilidad antes de abrir la cita en Google Calendar.</p>
+        <p class="calendar-note">Usa esta vista para confirmar disponibilidad antes de crear la cita en el calendario compartido.</p>
         <div class="calendar-wrap">
           <iframe
             title="Calendario de citas inmobiliarias"
@@ -545,12 +540,12 @@
 
       if (value) {
         localStorage.setItem(STORAGE_KEY, value);
-        setStatus("URL de Google Sheets guardada en este navegador.", "success");
+        setStatus("URL de Apps Script guardada en este navegador.", "success");
         return;
       }
 
       localStorage.removeItem(STORAGE_KEY);
-      setStatus("Se elimino la URL de Google Sheets guardada.", "");
+      setStatus("Se elimino la URL de Apps Script guardada.", "");
     });
 
     function setStatus(message, type) {
@@ -576,50 +571,57 @@
       return digits;
     }
 
-    async function guardarEnGoogleSheets(cita) {
+    async function registrarCita(cita) {
       const scriptUrl = scriptUrlInput.value.trim();
 
       if (!scriptUrl) {
-        throw new Error("Configura la URL de Apps Script para guardar la cita en Google Sheets.");
+        throw new Error("Configura la URL de Apps Script para crear la cita en el calendario compartido.");
       }
 
       localStorage.setItem(STORAGE_KEY, scriptUrl);
 
-      const response = await fetch(scriptUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify(cita)
-      });
-
-      if (response.type === "opaque") {
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error("Google Sheets no respondio correctamente.");
-      }
-
-      const responseText = await response.text();
-
-      if (!responseText) {
-        return;
-      }
-
       try {
+        const response = await fetch(scriptUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(cita)
+        });
+
+        if (!response.ok) {
+          throw new Error("Apps Script no respondio correctamente.");
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText) {
+          return {};
+        }
+
         const data = JSON.parse(responseText);
 
         if (data.status && data.status !== "success") {
-          throw new Error(data.message || "No se pudo guardar la cita en Google Sheets.");
-        }
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          return;
+          throw new Error(data.message || "No se pudo crear la cita.");
         }
 
-        throw error;
+        return data;
+      } catch (error) {
+        if (!(error instanceof TypeError)) {
+          throw error;
+        }
+
+        // Algunos despliegues de Apps Script bloquean leer la respuesta desde localhost.
+        await fetch(scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(cita)
+        });
+
+        return {};
       }
     }
 
@@ -656,30 +658,16 @@
         creado_en: new Date().toISOString()
       };
 
-      setStatus("Guardando cita en Google Sheets...", "");
+      setStatus("Creando cita en el calendario compartido...", "");
+
+      let resultado;
 
       try {
-        await guardarEnGoogleSheets(cita);
+        resultado = await registrarCita(cita);
       } catch (error) {
         setStatus(error.message, "error");
         return;
       }
-
-      const titulo = `Visita ${propiedad} - ${cliente}`;
-      const detalles = [
-        `Cliente: ${cliente}`,
-        `Telefono: ${telefono}`,
-        `Asesor: ${asesor}`,
-        `Propiedad: ${propiedad}`
-      ].join("\n");
-
-      const inicio = `${fecha}T${horaInicio}:00`.replace(/[-:]/g, "");
-      const fin = `${fecha}T${horaFin}:00`.replace(/[-:]/g, "");
-
-      const calendarUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE"
-        + `&text=${encodeURIComponent(titulo)}`
-        + `&details=${encodeURIComponent(detalles)}`
-        + `&dates=${inicio}/${fin}`;
 
       const mensaje = [
         `Hola ${cliente}, tu visita a la propiedad ${propiedad} fue agendada.`,
@@ -693,10 +681,13 @@
 
       const whatsappUrl = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
 
-      window.open(calendarUrl, "_blank", "noopener");
+      if (resultado && resultado.eventLink) {
+        window.open(resultado.eventLink, "_blank", "noopener");
+      }
+
       window.open(whatsappUrl, "_blank", "noopener");
 
-      setStatus("La cita se guardo en Google Sheets y se abrieron Google Calendar y WhatsApp.", "success");
+      setStatus("La cita se creo en el calendario compartido, se guardo en Google Sheets y se abrio WhatsApp.", "success");
     }
 
     form.addEventListener("submit", crearEvento);
