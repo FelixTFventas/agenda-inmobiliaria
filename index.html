@@ -590,6 +590,13 @@
       calendarFrame.src = config.calendarEmbedUrl;
     }
 
+    function refreshCalendarEmbed(team) {
+      const config = TEAM_CONFIG[team] || TEAM_CONFIG.Ventas;
+      const refreshUrl = new URL(config.calendarEmbedUrl);
+      refreshUrl.searchParams.set("t", String(Date.now()));
+      calendarFrame.src = refreshUrl.toString();
+    }
+
     function syncTeamUI(team) {
       renderAdvisorOptions(team);
       updateCalendarEmbed(team);
@@ -720,11 +727,18 @@
       }
 
       if (!resultado.sheetSaved) {
-        setStatus("La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets.", "success");
+        window.setTimeout(function () {
+          refreshCalendarEmbed(equipo);
+        }, 1500);
+        setStatus("La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets. El calendario se actualizo automaticamente.", "success");
         return;
       }
 
-      setStatus("La cita se creo en Google Calendar y se guardo en Google Sheets.", "success");
+      window.setTimeout(function () {
+        refreshCalendarEmbed(equipo);
+      }, 1500);
+
+      setStatus("La cita se creo en Google Calendar, se guardo en Google Sheets y el calendario se actualizo automaticamente.", "success");
     }
 
     equipoInput.addEventListener("change", function () {
