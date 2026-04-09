@@ -417,7 +417,7 @@
         <div class="hero-copy">
           <p class="eyebrow">Agenda de visitas</p>
           <h1>Coordina citas inmobiliarias</h1>
-          <p>Registra al cliente, genera el evento en Google Calendar y prepara el mensaje de confirmacion por WhatsApp desde una sola pantalla.</p>
+          <p>Registra al cliente y genera el evento en Google Calendar desde una sola pantalla.</p>
         </div>
 
         <div class="hero-brand" aria-label="Marca inmobiliaria">
@@ -429,7 +429,7 @@
       <div class="hero-stats" aria-label="Resumen rapido">
         <div class="stat">
           <strong>1 flujo</strong>
-          <span>Datos, evento y aviso al cliente en el mismo proceso.</span>
+          <span>Datos y evento en el mismo proceso.</span>
         </div>
         <div class="stat">
           <strong>Tiempo real</strong>
@@ -447,7 +447,7 @@
         <div class="panel-header">
           <p class="eyebrow">Nueva cita</p>
           <h2>Agendar visita</h2>
-          <p>Completa los datos del prospecto y valida el horario antes de crear la cita en el calendario compartido y abrir WhatsApp.</p>
+          <p>Completa los datos del prospecto y valida el horario antes de crear la cita en el calendario compartido.</p>
         </div>
 
         <form id="agenda-form">
@@ -488,13 +488,13 @@
           </div>
 
           <div class="actions">
-            <button type="submit" class="btn-primary">Crear cita y mensaje</button>
+            <button type="submit" class="btn-primary">Crear cita</button>
             <button type="reset" class="btn-secondary">Limpiar formulario</button>
           </div>
 
           <details class="integration">
             <summary>Configurar Apps Script</summary>
-            <p>Pega aqui la URL de tu Web App de Google Apps Script. La guardo en este navegador para crear cada cita en el calendario compartido, guardarla en tu hoja y abrir WhatsApp.</p>
+            <p>Pega aqui la URL de tu Web App de Google Apps Script. La guardo en este navegador para crear cada cita en el calendario compartido y guardarla en tu hoja.</p>
             <div class="field">
               <label for="script_url">URL de Apps Script</label>
               <input type="url" id="script_url" name="script_url" placeholder="https://script.google.com/macros/s/.../exec">
@@ -670,27 +670,12 @@
         return;
       }
 
-      const mensaje = [
-        `Hola ${cliente}, tu visita a la propiedad ${propiedad} fue agendada.`,
-        "",
-        `Fecha: ${fecha}`,
-        `Hora: ${horaInicio}`,
-        "Duracion: 45 minutos",
-        `Asesor: ${asesor}`,
-        "",
-        "Inmobiliaria"
-      ].join("\n");
-
-      const whatsappUrl = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
-
-      window.open(whatsappUrl, "_blank", "noopener");
-
       if (!resultado.sheetSaved) {
-        setStatus("La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets. Se abrio WhatsApp para confirmar al cliente.", "success");
+        setStatus("La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets.", "success");
         return;
       }
 
-      setStatus("La cita se creo en Google Calendar, se guardo en Google Sheets y se abrio WhatsApp para confirmar al cliente.", "success");
+      setStatus("La cita se creo en Google Calendar y se guardo en Google Sheets.", "success");
     }
 
     form.addEventListener("submit", crearEvento);

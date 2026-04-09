@@ -32,4 +32,4 @@ Columnas registradas:
 Comportamiento del flujo:
 - Si el evento se crea en Google Calendar, la fila queda con `estado = creado` y `revisar = NO`.
 - Si falla Google Calendar, la cita igual se guarda en la hoja con `estado = error_calendar` y `revisar = SI`.
-- WhatsApp solo se abre cuando el evento fue creado correctamente en Google Calendar.
+- La app crea la cita en Google Calendar y registra el resultado en Google Sheets.
