@@ -417,7 +417,7 @@
         <div class="hero-copy">
           <p class="eyebrow">Agenda de visitas</p>
           <h1>Coordina citas inmobiliarias</h1>
-          <p>Registra al cliente, crea la cita en el calendario compartido y prepara el mensaje de confirmacion por WhatsApp desde una sola pantalla.</p>
+          <p>Registra al cliente, genera el evento en Google Calendar y prepara el mensaje de confirmacion por WhatsApp desde una sola pantalla.</p>
         </div>
 
         <div class="hero-brand" aria-label="Marca inmobiliaria">
@@ -484,11 +484,6 @@
             <div class="field">
               <label for="hora_inicio">Hora de inicio</label>
               <input type="time" id="hora_inicio" name="hora_inicio" required>
-            </div>
-
-            <div class="field full">
-              <label for="hora_fin">Hora de fin</label>
-              <input type="time" id="hora_fin" name="hora_fin" required>
             </div>
           </div>
 
@@ -571,58 +566,65 @@
       return digits;
     }
 
-    async function registrarCita(cita) {
+    function llamarAppsScript(cita) {
       const scriptUrl = scriptUrlInput.value.trim();
 
       if (!scriptUrl) {
-        throw new Error("Configura la URL de Apps Script para crear la cita en el calendario compartido.");
+        throw new Error("Configura la URL de Apps Script para guardar la cita y crear el evento.");
       }
 
       localStorage.setItem(STORAGE_KEY, scriptUrl);
 
-      try {
-        const response = await fetch(scriptUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(cita)
-        });
+      return new Promise(function (resolve, reject) {
+        const callbackName = `agendaCallback_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        const url = new URL(scriptUrl);
+        const script = document.createElement("script");
+        let settled = false;
+        const timeoutId = window.setTimeout(function () {
+          if (settled) {
+            return;
+          }
 
-        if (!response.ok) {
-          throw new Error("Apps Script no respondio correctamente.");
+          settled = true;
+          cleanup();
+          reject(new Error("Google Apps Script no respondio a tiempo."));
+        }, 15000);
+
+        function cleanup() {
+          window.clearTimeout(timeoutId);
+          delete window[callbackName];
+          script.remove();
         }
 
-        const responseText = await response.text();
+        window[callbackName] = function (data) {
+          settled = true;
+          cleanup();
 
-        if (!responseText) {
-          return {};
-        }
+          if (!data || data.status === "error") {
+            reject(new Error((data && data.message) || "No se pudo procesar la cita."));
+            return;
+          }
 
-        const data = JSON.parse(responseText);
+          resolve(data);
+        };
 
-        if (data.status && data.status !== "success") {
-          throw new Error(data.message || "No se pudo crear la cita.");
-        }
+        script.onerror = function () {
+          if (settled) {
+            return;
+          }
 
-        return data;
-      } catch (error) {
-        if (!(error instanceof TypeError)) {
-          throw error;
-        }
+          settled = true;
+          cleanup();
+          reject(new Error("No fue posible conectar con Google Apps Script."));
+        };
 
-        // Algunos despliegues de Apps Script bloquean leer la respuesta desde localhost.
-        await fetch(scriptUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(cita)
-        });
+        url.searchParams.set("action", "createAppointment");
+        url.searchParams.set("callback", callbackName);
+        url.searchParams.set("payload", JSON.stringify(cita));
 
-        return {};
-      }
+        script.src = url.toString();
+        document.body.appendChild(script);
+      });
     }
 
     async function crearEvento(event) {
@@ -630,19 +632,13 @@
 
       const cliente = document.getElementById("cliente").value.trim();
       const telefono = normalizarTelefono(document.getElementById("telefono").value);
-      const propiedad = document.getElementById("propiedad").value;
+      const propiedad = document.getElementById("propiedad").value.trim();
       const asesor = document.getElementById("asesor").value;
       const fecha = document.getElementById("fecha").value;
       const horaInicio = document.getElementById("hora_inicio").value;
-      const horaFin = document.getElementById("hora_fin").value;
 
-      if (!cliente || !telefono || !propiedad || !asesor || !fecha || !horaInicio || !horaFin) {
+      if (!cliente || !telefono || !propiedad || !asesor || !fecha || !horaInicio) {
         setStatus("Completa todos los campos para crear la cita.", "error");
-        return;
-      }
-
-      if (horaFin <= horaInicio) {
-        setStatus("La hora de fin debe ser posterior a la hora de inicio.", "error");
         return;
       }
 
@@ -654,18 +650,23 @@
         asesor,
         fecha,
         hora_inicio: horaInicio,
-        hora_fin: horaFin,
+        duracion_minutos: 45,
         creado_en: new Date().toISOString()
       };
 
-      setStatus("Creando cita en el calendario compartido...", "");
+      setStatus("Creando cita en Google Calendar y Google Sheets...", "");
 
       let resultado;
 
       try {
-        resultado = await registrarCita(cita);
+        resultado = await llamarAppsScript(cita);
       } catch (error) {
         setStatus(error.message, "error");
+        return;
+      }
+
+      if (!resultado.eventCreated) {
+        setStatus(resultado.message || "La cita se registro para revision, pero no se pudo crear el evento en Calendar.", "error");
         return;
       }
 
@@ -674,6 +675,7 @@
         "",
         `Fecha: ${fecha}`,
         `Hora: ${horaInicio}`,
+        "Duracion: 45 minutos",
         `Asesor: ${asesor}`,
         "",
         "Inmobiliaria"
@@ -681,13 +683,14 @@
 
       const whatsappUrl = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
 
-      if (resultado && resultado.eventLink) {
-        window.open(resultado.eventLink, "_blank", "noopener");
-      }
-
       window.open(whatsappUrl, "_blank", "noopener");
 
-      setStatus("La cita se creo en el calendario compartido, se guardo en Google Sheets y se abrio WhatsApp.", "success");
+      if (!resultado.sheetSaved) {
+        setStatus("La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets. Se abrio WhatsApp para confirmar al cliente.", "success");
+        return;
+      }
+
+      setStatus("La cita se creo en Google Calendar, se guardo en Google Sheets y se abrio WhatsApp para confirmar al cliente.", "success");
     }
 
     form.addEventListener("submit", crearEvento);

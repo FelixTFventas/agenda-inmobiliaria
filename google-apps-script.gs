@@ -1,55 +1,11 @@
 const SHEET_NAME = 'Citas';
 const CALENDAR_ID = 'f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81@group.calendar.google.com';
+const DEFAULT_DURATION_MINUTES = 45;
 
 function doPost(e) {
   try {
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
     const payload = JSON.parse(e.postData.contents || '{}');
-    const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
-
-    if (!calendar) {
-      throw new Error('No se encontro el calendario compartido configurado.');
-    }
-
-    const startTime = parseDateTime(payload.fecha, payload.hora_inicio);
-    const endTime = parseDateTime(payload.fecha, payload.hora_fin);
-
-    if (!startTime || !endTime || endTime <= startTime) {
-      throw new Error('La fecha u horario de la cita no es valido.');
-    }
-
-    const event = calendar.createEvent(
-      buildTitle(payload),
-      startTime,
-      endTime,
-      {
-        description: buildDescription(payload)
-      }
-    );
-    const eventLink = buildEventLink(event.getId());
-
-    ensureHeader(sheet);
-
-    sheet.appendRow([
-      payload.id || '',
-      payload.cliente || '',
-      payload.telefono || '',
-      payload.propiedad || '',
-      payload.asesor || '',
-      payload.fecha || '',
-      payload.hora_inicio || '',
-      payload.hora_fin || '',
-      payload.creado_en || new Date().toISOString(),
-      event.getId(),
-      eventLink
-    ]);
-
-    return jsonResponse({
-      status: 'success',
-      eventId: event.getId(),
-      eventLink: eventLink
-    });
+    return jsonResponse(handleAppointment(payload));
   } catch (error) {
     return jsonResponse({
       status: 'error',
@@ -58,8 +14,106 @@ function doPost(e) {
   }
 }
 
-function doGet() {
-  return jsonResponse({ status: 'success', message: 'Apps Script activo' });
+function doGet(e) {
+  try {
+    if (e && e.parameter && e.parameter.action === 'createAppointment') {
+      const payload = JSON.parse(e.parameter.payload || '{}');
+      const result = handleAppointment(payload);
+      return callbackResponse(result, e.parameter.callback);
+    }
+
+    return jsonResponse({ status: 'success', message: 'Apps Script activo' });
+  } catch (error) {
+    const response = {
+      status: 'error',
+      message: error.message
+    };
+
+    return callbackResponse(response, e && e.parameter && e.parameter.callback);
+  }
+}
+
+function handleAppointment(payload) {
+  validatePayload(payload);
+
+  const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+
+  if (!calendar) {
+    throw new Error('No se encontro el calendario configurado.');
+  }
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
+  const durationMinutes = Number(payload.duracion_minutos) || DEFAULT_DURATION_MINUTES;
+  const startDate = parseDateTime(payload.fecha, payload.hora_inicio);
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+  let event = null;
+  let eventCreated = false;
+  let appointmentStatus = 'creado';
+  let errorMessage = '';
+  let reviewFlag = 'NO';
+
+  ensureHeader(sheet);
+
+  try {
+    event = calendar.createEvent(
+      buildTitle(payload),
+      startDate,
+      endDate,
+      { description: buildDescription(payload) }
+    );
+    eventCreated = true;
+  } catch (error) {
+    appointmentStatus = 'error_calendar';
+    errorMessage = error.message;
+    reviewFlag = 'SI';
+  }
+
+  const row = [
+    payload.id || '',
+    payload.cliente || '',
+    payload.telefono || '',
+    payload.propiedad || '',
+    payload.asesor || '',
+    payload.fecha || '',
+    payload.hora_inicio || '',
+    durationMinutes,
+    eventCreated && event ? event.getId() : '',
+    appointmentStatus,
+    errorMessage,
+    reviewFlag,
+    payload.creado_en || new Date().toISOString()
+  ];
+
+  try {
+    sheet.appendRow(row);
+  } catch (error) {
+    return {
+      status: 'success',
+      eventCreated: eventCreated,
+      eventId: eventCreated && event ? event.getId() : '',
+      sheetSaved: false,
+      appointmentStatus: eventCreated ? 'warning_sheet' : appointmentStatus,
+      review: eventCreated ? 'NO' : reviewFlag,
+      message: eventCreated
+        ? 'La cita se creo en Google Calendar, pero no se pudo guardar en Google Sheets.'
+        : 'No se pudo guardar la cita en Google Sheets y tampoco se creo el evento en Calendar.',
+      error: eventCreated ? error.message : errorMessage || error.message
+    };
+  }
+
+  return {
+    status: 'success',
+    eventCreated: eventCreated,
+    eventId: eventCreated && event ? event.getId() : '',
+    sheetSaved: true,
+    appointmentStatus: appointmentStatus,
+    review: reviewFlag,
+    message: eventCreated
+      ? 'La cita se creo correctamente en Google Calendar.'
+      : 'La cita se guardo para revision, pero no se pudo crear el evento en Calendar.',
+    error: errorMessage
+  };
 }
 
 function ensureHeader(sheet) {
@@ -71,10 +125,12 @@ function ensureHeader(sheet) {
     'asesor',
     'fecha',
     'hora_inicio',
-    'hora_fin',
-    'creado_en',
+    'duracion_minutos',
     'calendar_event_id',
-    'calendar_event_link'
+    'estado',
+    'error',
+    'revisar',
+    'creado_en'
   ];
 
   if (sheet.getLastRow() === 0) {
@@ -104,22 +160,28 @@ function buildDescription(payload) {
   ].join('\n');
 }
 
-function parseDateTime(dateValue, timeValue) {
-  if (!dateValue || !timeValue) {
-    return null;
+function validatePayload(payload) {
+  const requiredFields = ['cliente', 'telefono', 'propiedad', 'asesor', 'fecha', 'hora_inicio'];
+
+  for (var i = 0; i < requiredFields.length; i += 1) {
+    if (!payload[requiredFields[i]]) {
+      throw new Error('Falta el campo obligatorio: ' + requiredFields[i]);
+    }
   }
+}
 
-  const parts = String(dateValue).split('-');
-  const timeParts = String(timeValue).split(':');
+function parseDateTime(dateValue, timeValue) {
+  const dateParts = String(dateValue || '').split('-');
+  const timeParts = String(timeValue || '').split(':');
 
-  if (parts.length !== 3 || timeParts.length < 2) {
-    return null;
+  if (dateParts.length !== 3 || timeParts.length < 2) {
+    throw new Error('La fecha u hora no tienen un formato valido.');
   }
 
   return new Date(
-    Number(parts[0]),
-    Number(parts[1]) - 1,
-    Number(parts[2]),
+    Number(dateParts[0]),
+    Number(dateParts[1]) - 1,
+    Number(dateParts[2]),
     Number(timeParts[0]),
     Number(timeParts[1]),
     0,
@@ -127,13 +189,18 @@ function parseDateTime(dateValue, timeValue) {
   );
 }
 
-function buildEventLink(eventId) {
-  const encoded = Utilities.base64EncodeWebSafe(eventId + ' ' + CALENDAR_ID);
-  return 'https://calendar.google.com/calendar/event?eid=' + encoded;
-}
-
 function jsonResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function callbackResponse(data, callback) {
+  if (!callback) {
+    return jsonResponse(data);
+  }
+
+  return ContentService
+    .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }

@@ -9,6 +9,27 @@
    - Ejecutar como: tu cuenta
    - Quien tiene acceso: Cualquiera
 7. Implementa y copia la URL terminada en `/exec`.
-8. En la app, abre `Configurar Google Sheets` y pega esa URL.
+8. Autoriza tambien el acceso a Google Calendar cuando Apps Script lo solicite.
+9. En la app, abre `Configurar Google Sheets` y pega esa URL.
 
 Cada cita nueva se guardara en la hoja `Citas`.
+
+Columnas registradas:
+- `id`
+- `cliente`
+- `telefono`
+- `propiedad`
+- `asesor`
+- `fecha`
+- `hora_inicio`
+- `duracion_minutos`
+- `calendar_event_id`
+- `estado`
+- `error`
+- `revisar`
+- `creado_en`
+
+Comportamiento del flujo:
+- Si el evento se crea en Google Calendar, la fila queda con `estado = creado` y `revisar = NO`.
+- Si falla Google Calendar, la cita igual se guarda en la hoja con `estado = error_calendar` y `revisar = SI`.
+- WhatsApp solo se abre cuando el evento fue creado correctamente en Google Calendar.
