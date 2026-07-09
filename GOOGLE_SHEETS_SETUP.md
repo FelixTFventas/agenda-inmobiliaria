@@ -14,9 +14,12 @@
 
 Cada cita nueva se guardara en la hoja `Citas`.
 
-Calendarios usados:
-- `Ventas`: `f3907a67a115e0dd3a6aa84559989b1eff1809dacc0962801da02d062a4d9c81@group.calendar.google.com`
-- `Arriendo`: `e011c9c835c657b151a32cee1e71e17c2fd035d6875c3014482cd44c078e40c3@group.calendar.google.com`
+Calendarios usados por asesor:
+- `Paola Crespo`: `810f08fc5f25465b02f063c8377b8fd8b691be7be34edb386111239586e15998@group.calendar.google.com`
+- `Yunior Lara`: `asesorventasfelixtrujillo@gmail.com`
+- `Patricia Trujillo`: `4c9d88289e74511e476b6a8d131bab7179c2f5a1b711097b62367d3b13f6f695@group.calendar.google.com`
+- `Harold Trujillo`: `1344b30c158727690510a312d648d03bcd114c17eab04012e071c606e8bf7300@group.calendar.google.com`
+- `Cristian Rojas`: `b6d0495d06c467e5fc0d7ac0602b68f242fd053200ac849ec1acaceeec68fef3@group.calendar.google.com`
 
 Columnas registradas:
 - `id`
@@ -37,4 +40,4 @@ Columnas registradas:
 Comportamiento del flujo:
 - Si el evento se crea en Google Calendar, la fila queda con `estado = creado` y `revisar = NO`.
 - Si falla Google Calendar, la cita igual se guarda en la hoja con `estado = error_calendar` y `revisar = SI`.
-- La app crea la cita en Google Calendar del equipo seleccionado y registra el resultado en Google Sheets.
+- La app crea la cita en Google Calendar del asesor seleccionado y registra el resultado en Google Sheets.
