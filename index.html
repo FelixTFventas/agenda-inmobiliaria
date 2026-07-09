@@ -320,6 +320,23 @@
     color: var(--danger);
   }
 
+  .advisor-color {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  .color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--advisor-color, var(--accent));
+    box-shadow: 0 0 0 3px rgba(21, 51, 133, 0.08);
+  }
+
   .integration {
     padding: 16px;
     border: 1px solid rgba(21, 51, 133, 0.12);
@@ -479,6 +496,10 @@
                 <option value="Yunior Lara">Yunior Lara</option>
                 <option value="Patricia Trujillo">Patricia Trujillo</option>
               </select>
+              <p id="advisor-color" class="advisor-color" aria-live="polite">
+                <span class="color-dot" aria-hidden="true"></span>
+                <span>Color asignado en Calendar: Azul</span>
+              </p>
             </div>
 
             <div class="field full">
@@ -539,8 +560,16 @@
     const scriptUrlInput = document.getElementById("script_url");
     const equipoInput = document.getElementById("equipo");
     const asesorInput = document.getElementById("asesor");
+    const advisorColorNode = document.getElementById("advisor-color");
     const calendarFrame = document.getElementById("calendar-frame");
     const STORAGE_KEY = "agenda_inmobiliaria_script_url";
+    const ADVISOR_COLORS = {
+      "Paola Crespo": { label: "Azul", color: "#3f51b5" },
+      "Yunior Lara": { label: "Verde", color: "#0b8043" },
+      "Patricia Trujillo": { label: "Rojo", color: "#d50000" },
+      "Harold Trujillo": { label: "Malva", color: "#9e69af" },
+      "Cristian Rojas": { label: "Naranja", color: "#f4511e" }
+    };
     const TEAM_CONFIG = {
       Ventas: {
         advisors: ["Paola Crespo", "Yunior Lara", "Patricia Trujillo"],
@@ -583,6 +612,21 @@
         option.textContent = advisor;
         asesorInput.appendChild(option);
       });
+
+      updateAdvisorColor();
+    }
+
+    function updateAdvisorColor() {
+      const colorConfig = ADVISOR_COLORS[asesorInput.value];
+
+      if (!colorConfig) {
+        advisorColorNode.style.setProperty("--advisor-color", "var(--accent)");
+        advisorColorNode.querySelector("span:last-child").textContent = "Color asignado en Calendar: predeterminado";
+        return;
+      }
+
+      advisorColorNode.style.setProperty("--advisor-color", colorConfig.color);
+      advisorColorNode.querySelector("span:last-child").textContent = `Color asignado en Calendar: ${colorConfig.label}`;
     }
 
     function updateCalendarEmbed(team) {
@@ -744,6 +788,8 @@
     equipoInput.addEventListener("change", function () {
       syncTeamUI(equipoInput.value);
     });
+
+    asesorInput.addEventListener("change", updateAdvisorColor);
 
     form.addEventListener("submit", crearEvento);
     form.addEventListener("reset", function () {
